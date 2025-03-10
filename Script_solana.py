@@ -8,7 +8,7 @@ w3 = Web3(Web3.HTTPProvider(RPC_ENDPOINT))
 
 # Replace with your private key and wallet address
 PRIVATE_KEY = "0xc4efc84f95191bd5cb132fae2c2d3fd960e2bf9ef9e89ead3c96720c6ad0a9d4"
-WALLET_ADDRESS = w3.to_checksum_address("0x89C4C40e77fA5a1Bb57bf0c02090c4b1d42A1fFe")
+WALLET_ADDRESS = w3.to_checksum_address("0x4f6b3aac859CA32894419d6103C31a31442fE21C")
 
 # Set the contract details
 CONTRACT_ADDRESS = w3.to_checksum_address("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")  # Example (Uniswap Factory)
