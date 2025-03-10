@@ -1,86 +1,61 @@
 import asyncio
-import base64
-import struct
-import sys
+import requests
+from web3 import Web3
 
-from solana.publickey import PublicKey
-from solana.rpc.async_api import AsyncClient
-from solana.transaction import Transaction, TransactionInstruction
-from solana.rpc.types import TxOpts
-from solana.keypair import Keypair  # Correct import for key management
+# Replace with your Infura/Alchemy or any Ethereum RPC provider
+RPC_ENDPOINT = "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"
+w3 = Web3(Web3.HTTPProvider(RPC_ENDPOINT))
 
-# Replace these with your actual values.
-PROGRAM_ID = PublicKey("6wZt5YSnUqaBe1budKMmjRFaehamd9wXnu3kZRbsg8k7")
-PRICE_FEED_ACCOUNT = PublicKey("6wZt5YSnUqaBe1budKMmjRFaehamd9wXnu3kZRbsg8k7")
-# Load or create your user account securely
-USER_ACCOUNT = Keypair.generate()  # Replace with loading from a secure key store
+# Replace with your private key and wallet address
+PRIVATE_KEY = "YOUR_PRIVATE_KEY"
+WALLET_ADDRESS = w3.to_checksum_address("YOUR_WALLET_ADDRESS")
 
-TARGET_PRICE = 100  # Example target price; adjust based on your logic.
-RPC_ENDPOINT = "https://api.devnet.solana.com"  # Change to mainnet when ready.
+# Set the contract details
+CONTRACT_ADDRESS = w3.to_checksum_address("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")  # Example (Uniswap Factory)
+TARGET_PRICE = 2000  # Set your Ethereum target price in USD
+GAS_PRICE_GWEI = 20  # Set gas price in Gwei
 
-async def hunt():
-    async with AsyncClient(RPC_ENDPOINT) as client:
-        # 1. Fetch the price feed account data.
-        resp = await client.get_account_info(PRICE_FEED_ACCOUNT)
-        account_info = resp.get("result", {}).get("value")
+def get_eth_price():
+    """Fetch Ethereum price from CoinGecko API."""
+    url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        return data["ethereum"]["usd"]
+    except Exception as e:
+        print(f"Error fetching ETH price: {e}")
+        return None
+
+def create_transaction():
+    """Creates and sends a transaction when sniping conditions are met."""
+    nonce = w3.eth.get_transaction_count(WALLET_ADDRESS)
+    
+    tx = {
+        'nonce': nonce,
+        'to': WALLET_ADDRESS,  # Example: self-transfer to test transaction
+        'value': w3.to_wei(0.001, 'ether'),  # Adjust value as needed
+        'gas': 21000,
+        'gasPrice': w3.to_wei(GAS_PRICE_GWEI, 'gwei'),
+    }
+    
+    signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    
+    print(f"Transaction sent! Hash: {w3.to_hex(tx_hash)}")
+
+async def snipe():
+    """Continuously checks for ETH price and executes a transaction when the condition is met."""
+    while True:
+        eth_price = get_eth_price()
         
-        if account_info is None or "data" not in account_info:
-            print("Failed to fetch price feed account data.")
-            return
-
-        # Decode base64 data
-        try:
-            data_base64 = account_info["data"][0]
-            data_bytes = base64.b64decode(data_base64)
-        except (IndexError, KeyError, base64.binascii.Error) as e:
-            print(f"Error decoding price feed data: {e}")
-            return
+        if eth_price:
+            print(f"Current ETH Price: ${eth_price}")
+            if eth_price <= TARGET_PRICE:
+                print("Sniping opportunity detected! Executing transaction...")
+                create_transaction()
+                break  # Stop the bot after sniping
         
-        if len(data_bytes) < 8:
-            print("Unexpected data format in price feed account.")
-            return
-        
-        # Assume the price is stored as an 8-byte little-endian unsigned integer.
-        try:
-            current_price = struct.unpack("<Q", data_bytes[:8])[0]
-            print(f"Current price: {current_price}")
-        except struct.error as e:
-            print(f"Error unpacking price data: {e}")
-            return
-
-        # 2. Check if current price meets our sniping criteria.
-        if current_price <= TARGET_PRICE:
-            print("Sniping opportunity detected!")
-
-            # 3. Prepare the instruction data.
-            instruction_data = struct.pack("<Q", TARGET_PRICE)
-
-            # Define the accounts required by your on-chain program.
-            keys = [
-                (PRICE_FEED_ACCOUNT, False, True),  # Writable account
-                (USER_ACCOUNT.public_key, True, False)  # Signer account
-            ]
-
-            # Create the instruction to call your smart contract’s "hunt" function.
-            instruction = TransactionInstruction(
-                keys=[{"pubkey": key[0], "is_signer": key[1], "is_writable": key[2]} for key in keys],
-                program_id=PROGRAM_ID,
-                data=instruction_data,
-            )
-
-            # Build the transaction.
-            tx = Transaction()
-            tx.add(instruction)
-
-            # Send the transaction.
-            print("Sending transaction...")
-            try:
-                tx_response = await client.send_transaction(tx, USER_ACCOUNT, signers=[USER_ACCOUNT], opts=TxOpts(skip_confirmation=False))
-                print("Transaction response:", tx_response)
-            except Exception as e:
-                print(f"Transaction failed: {e}")
-        else:
-            print("No opportunity detected.")
+        await asyncio.sleep(30)  # Check price every 30 seconds
 
 if __name__ == '__main__':
-    asyncio.run(hunt())
+    asyncio.run(snipe())
