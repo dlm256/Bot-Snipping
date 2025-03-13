@@ -5,8 +5,8 @@ from eth_account import Account
 
 # === Configuration ===
 INFURA_URL = "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"
-PRIVATE_KEY = "YOUR_PRIVATE_KEY"  # ⚠️ Store securely!
-WALLET_ADDRESS = "YOUR_WALLET_ADDRESS"
+PRIVATE_KEY = "744c9eb107d6656b6664d4afaa8e1683bed302ef20186c65e127c18c63d79ce6"  # ⚠️ Store securely!
+WALLET_ADDRESS = "0x4f6b3aac859CA32894419d6103C31a31442fE21C"
 
 # Uniswap Router and Factory addresses
 UNISWAP_FACTORY = Web3.to_checksum_address("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
